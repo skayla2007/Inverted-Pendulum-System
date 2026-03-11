@@ -18,7 +18,7 @@ def train():
 
     print("开始强化训练...")
     # 建议至少训练 1,000,000 步。由于是 DIRECT 模式，速度会很快
-    model.learn(total_timesteps=10000)
+    model.learn(total_timesteps=200000)
     model.save("ppo_ball_joint_3d_heavy_gravity")
     print("模型已保存。")
     env.close()

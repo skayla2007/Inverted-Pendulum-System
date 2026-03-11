@@ -16,6 +16,8 @@ class BallJointPendulumEnv(gym.Env):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
 
+        self.steps_survived = 0
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         p.resetSimulation()
@@ -26,7 +28,7 @@ class BallJointPendulumEnv(gym.Env):
 
         point_radius = 0.001
         pole_radius = 0.015
-        pole_height = 1.0
+        pole_height = 0.2
 
         cart_col = p.createCollisionShape(p.GEOM_SPHERE, radius=point_radius)
         cart_vis = p.createVisualShape(p.GEOM_SPHERE, radius=point_radius, rgbaColor=[0, 1, 0, 1])
@@ -64,6 +66,8 @@ class BallJointPendulumEnv(gym.Env):
         init_ori = p.getQuaternionFromEuler([init_roll, init_pitch, init_yaw])
         p.resetJointStateMultiDof(self.robot, 0, targetValue=init_ori)
 
+        self.steps_survived = 0
+
         return self._get_obs(), {}
 
     def _get_obs(self):
@@ -88,6 +92,8 @@ class BallJointPendulumEnv(gym.Env):
 
         obs = self._get_obs()
 
+        self.steps_survived += 1
+
         # --- 强化奖励机制 ---
         # 1. 姿态奖励：使用 cos 值的指数，倾斜一点点奖励就大幅下降
         upright = (obs[5] + obs[7]) / 2.0
@@ -95,12 +101,17 @@ class BallJointPendulumEnv(gym.Env):
 
         # 2. 距离惩罚：不能跑离中心太远
         dist_sq = obs[0] ** 2 + obs[1] ** 2
-        reward_dist = -0.1 * dist_sq
+        reward_dist = -0.03 * dist_sq
 
         # 3. 速度惩罚：防止底座疯狂抖动
-        reward_vel = -0.01 * (obs[8] ** 2 + obs[9] ** 2)
+        reward_vel = -0.005 * (obs[8] ** 2 + obs[9] ** 2)
 
         reward = reward_upright + reward_dist + reward_vel
+
+        reward_time = 0.02  # 您可以调整这个数值
+
+        # 修改这一行：综合奖励（加上 reward_time）
+        reward = reward_upright + reward_dist + reward_vel + reward_time * reward_time * 50
 
         # 结束条件：角度超过约 45 度 (cos 0.7) 或跑得太远
         done = bool(upright < 0.7 or dist_sq > 4.0)
