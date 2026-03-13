@@ -17,6 +17,8 @@ class InvertedPendulum3D(gym.Env):
 
         # 记录底座当前位置
         self.base_pos = np.array([0.0, 0.0, 0.0])
+        #上一步的速度
+        self.last_action = np.zeros(2, dtype=np.float32)
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -51,6 +53,7 @@ class InvertedPendulum3D(gym.Env):
         p.changeDynamics(self.pole_id, -1, linearDamping=0, angularDamping=0, jointLowerLimit=0, jointUpperLimit=0)
 
         self.base_pos = np.array([0.0, 0.0, 0.0])
+        self.last_action = np.zeros(2, dtype=np.float32)
         return self._get_obs(), {}
 
     def _get_obs(self):
@@ -77,7 +80,15 @@ class InvertedPendulum3D(gym.Env):
         obs = self._get_obs()
         # 奖励：角度偏差平方越小奖励越高
         angle_diff = np.sum(np.square(obs[2:4]))
-        reward = 1.0 - angle_diff
+
+        velocity_magnitude = np.linalg.norm(action)
+
+        acceleration = (action - self.last_action) / config.TIME_STEP
+        acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小（模长）
+
+        reward = 3.0 - 2.0 * angle_diff #- 0.2 * velocity_magnitude - 0.05 * acc_magnitude
+
+        self.last_action = action.copy()
 
         # 终止条件
         terminated = bool(angle_diff > 1.0 or abs(obs[0]) > 5 or abs(obs[1]) > 5)
