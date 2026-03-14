@@ -20,6 +20,9 @@ class InvertedPendulum3D(gym.Env):
         #上一步的速度
         self.last_action = np.zeros(2, dtype=np.float32)
 
+        self.steps = 0  # 记录当前episode的步数
+        self.max_steps = 1000  # 最大步数，防止无限运行
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         p.resetSimulation()
@@ -54,6 +57,7 @@ class InvertedPendulum3D(gym.Env):
 
         self.base_pos = np.array([0.0, 0.0, 0.0])
         self.last_action = np.zeros(2, dtype=np.float32)
+        self.steps = 0
         return self._get_obs(), {}
 
     def _get_obs(self):
@@ -78,6 +82,11 @@ class InvertedPendulum3D(gym.Env):
         p.stepSimulation()
 
         obs = self._get_obs()
+
+        self.steps += 1
+        step_bonus = 0.03 * self.steps
+
+        distance = np.linalg.norm([obs[0] , obs[1]])
         # 奖励：角度偏差平方越小奖励越高
         angle_diff = np.sum(np.square(obs[2:4]))
 
@@ -86,7 +95,7 @@ class InvertedPendulum3D(gym.Env):
         acceleration = (action - self.last_action) / config.TIME_STEP
         acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小（模长）
 
-        reward = 3.0 - 2.0 * angle_diff #- 0.2 * velocity_magnitude - 0.05 * acc_magnitude
+        reward = 2.0 - 8.0 * angle_diff - 1.8 * velocity_magnitude - 0.05 * acc_magnitude + 3.0 * step_bonus - 0.1 *distance
 
         self.last_action = action.copy()
 
