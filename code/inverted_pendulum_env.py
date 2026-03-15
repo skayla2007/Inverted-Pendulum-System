@@ -71,6 +71,8 @@ class InvertedPendulum3D(gym.Env):
         return np.array([b_pos[0], b_pos[1], euler[0], euler[1], b_vel[0], b_vel[1], p_w[0], p_w[1]], dtype=np.float32)
 
     def step(self, action):
+        action = np.array(action, dtype=np.float32)
+
         # 核心逻辑：底座不受力，直接改变位置 (Kinematic Control)
         # 这样底座移动时，杆子会因为惯性向反方向倒
         self.base_pos[0] += action[0]
