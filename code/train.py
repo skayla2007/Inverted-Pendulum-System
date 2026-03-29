@@ -9,10 +9,17 @@ def train():
     env = InvertedPendulum3D(render=False)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = PPO("MlpPolicy", env, verbose=1,
+    policy_kwargs = dict(
+        activation_fn=torch.nn.ReLU,
+        net_arch=dict(pi=[256, 256], vf=[256, 256])
+    )
+
+    model = PPO("MlpPolicy", env,
+                verbose=1,
                 learning_rate=0.0003,
                 n_steps=2048,
-                batch_size=64,
+                batch_size=512,
+                policy_kwargs=policy_kwargs,
                 device=device)
 
     print(f"使用 {device} 训练中...")
