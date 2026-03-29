@@ -13,7 +13,7 @@ class InvertedPendulum3D(gym.Env):
 
         # 动作空间：底座在 X, Y 轴的位移增量 (速度)
         self.action_space = spaces.Box(low=-0.05, high=0.05, shape=(2,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(8,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32)
 
         # 记录底座当前位置
         self.base_pos = np.array([0.0, 0.0, 0.0])
@@ -42,9 +42,13 @@ class InvertedPendulum3D(gym.Env):
         # 初始位置随机偏移 (模拟杆子初始就不稳)
         rand_x = np.random.uniform(-0.05, 0.05)
         rand_y = np.random.uniform(-0.05, 0.05)
+        init_orn = p.getQuaternionFromEuler([np.pi + rand_x, rand_y, 0])
+
+        # 向下初始化时，杆子的几何中心应该在底座下方 (0.05 - 半个杆长)
         self.pole_id = p.createMultiBody(baseMass=config.POLE_MASS, baseCollisionShapeIndex=pc_id,
                                          baseVisualShapeIndex=pv_id,
-                                         basePosition=[rand_x, rand_y, config.POLE_LENGTH / 2])
+                                         basePosition=[0, 0, 0.05 - config.POLE_LENGTH / 2],
+                                         baseOrientation=init_orn)
 
         # 3. 约束：点对点约束 (球向铰链)
         # 将杆子的底部 ([0,0,-L/2]) 连到底座中心
@@ -61,14 +65,23 @@ class InvertedPendulum3D(gym.Env):
         return self._get_obs(), {}
 
     def _get_obs(self):
-        # 获取底座位置
         b_pos, _ = p.getBasePositionAndOrientation(self.base_id)
         b_vel, _ = p.getBaseVelocity(self.base_id)
-        # 获取杆子姿态
-        _, p_orn = p.getBasePositionAndOrientation(self.pole_id)
+
+        # 重心的世界坐标 Z
+        p_pos, p_orn = p.getBasePositionAndOrientation(self.pole_id)
         _, p_w = p.getBaseVelocity(self.pole_id)
+
+        # 欧拉角
         euler = p.getEulerFromQuaternion(p_orn)
-        return np.array([b_pos[0], b_pos[1], euler[0], euler[1], b_vel[0], b_vel[1], p_w[0], p_w[1]], dtype=np.float32)
+
+        return np.array([
+            b_pos[0], b_pos[1],
+            p_pos[2],  # 新加的分量：重心高度 Z
+            euler[0], euler[1],
+            b_vel[0], b_vel[1],
+            p_w[0], p_w[1]
+        ], dtype=np.float32)
 
     def step(self, action):
         action = np.array(action, dtype=np.float32)
@@ -90,17 +103,17 @@ class InvertedPendulum3D(gym.Env):
 
         distance = np.linalg.norm([obs[0] , obs[1]])
         # 奖励：角度偏差平方越小奖励越高
-        angle_diff = np.sum(np.square(obs[2:4]))
+        current_pole_z = obs[2]
 
         velocity_magnitude = np.linalg.norm(action)
 
         acceleration = (action - self.last_action) / config.TIME_STEP
         acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小（模长）
 
-        reward = 2.0 - 8.0 * angle_diff - 1.8 * velocity_magnitude - 0.05 * acc_magnitude + 3.0 * step_bonus - 0.1 *distance
+        reward = 1.0 * current_pole_z #- 1.8 * velocity_magnitude - 0.05 * acc_magnitude + 3.0 * step_bonus - 0.1 *distance
 
         self.last_action = action.copy()
 
         # 终止条件
-        terminated = bool(angle_diff > 1.0 or abs(obs[0]) > 5 or abs(obs[1]) > 5)
+        terminated = bool(abs(obs[0]) > 5 or abs(obs[1]) > 5)
         return obs, reward, terminated, False, {}
