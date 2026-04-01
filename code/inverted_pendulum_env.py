@@ -23,6 +23,9 @@ class InvertedPendulum3D(gym.Env):
         self.steps = 0  # 记录当前episode的步数
         self.max_steps = 1000  # 最大步数，防止无限运行
 
+        self.traj_points = []
+        self.max_traj_len = 50
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         p.resetSimulation()
@@ -96,6 +99,21 @@ class InvertedPendulum3D(gym.Env):
 
         p.stepSimulation()
 
+        #轨迹
+        p_pos, p_orn = p.getBasePositionAndOrientation(self.pole_id)
+
+        top_pos, _ = p.multiplyTransforms(p_pos, p_orn, [0, 0, config.POLE_LENGTH / 2], [0, 0, 0, 1])
+
+        self.traj_points.append(top_pos)
+        if len(self.traj_points) > 1:
+            p.addUserDebugLine(self.traj_points[-2], self.traj_points[-1],
+                               lineColorRGB=[1, 0, 1],
+                               lineWidth=2,
+                               lifeTime=20.0)
+
+        if len(self.traj_points) > self.max_traj_len:
+            self.traj_points.pop(0)
+
         obs = self._get_obs()
 
         self.steps += 1
@@ -110,7 +128,9 @@ class InvertedPendulum3D(gym.Env):
         acceleration = (action - self.last_action) / config.TIME_STEP
         acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小（模长）
 
-        reward = 1.0 * current_pole_z #- 1.8 * velocity_magnitude - 0.05 * acc_magnitude + 3.0 * step_bonus - 0.1 *distance
+        high = current_pole_z if current_pole_z > 0.2 else -1
+
+        reward = 1.0 * current_pole_z #- 0.02 * distance - 0.0001 * velocity_magnitude - 0.005 * acc_magnitude + 0.01 * step_bonus
 
         self.last_action = action.copy()
 
