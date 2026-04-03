@@ -11,19 +11,17 @@ def run():
     obs, _ = env.reset()
     while True:
         keys = p.getKeyboardEvents()
-        force_x, force_y = 0, 0
-        push_magnitude = 0.01
+        impulse = 0.5
+        ang_vel = [0, 0, 0]
 
-        if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN: force_x = -push_magnitude
-        if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN: force_x = push_magnitude
-        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN: force_y = push_magnitude
-        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN: force_y = -push_magnitude
+        if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN: ang_vel = [0, -impulse, 0]
+        if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN: ang_vel = [0, impulse, 0]
+        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN: ang_vel = [impulse, 0, 0]
+        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN: ang_vel = [-impulse, 0, 0]
 
-        if force_x != 0 or force_y != 0:
-            p.applyExternalForce(env.pole_id, -1,
-                                 forceObj=[force_x, force_y, 0],
-                                 posObj=[0, 0, 0],
-                                 flags=p.WORLD_FRAME)
+        if any(v != 0 for v in ang_vel):
+            curr_v, curr_w = p.getBaseVelocity(env.pole_id)
+            p.resetBaseVelocity(env.pole_id, curr_v, [curr_w[0] + ang_vel[0], curr_w[1] + ang_vel[1], 0])
 
         action, _ = model.predict(obs, deterministic=True)
         obs, _, terminated, truncated, _ = env.step(action)

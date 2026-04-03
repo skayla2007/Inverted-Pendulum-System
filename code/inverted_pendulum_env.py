@@ -139,7 +139,7 @@ class InvertedPendulum3D(gym.Env):
                 #20.0 * (- current_pole_z * current_pole_z + current_pole_z)
                 +1.0 * (current_pole_z)
                 #+ 8.0 * np.power(current_pole_z,3)
-                #- 0.01 * np.power(distance,3)
+                - 0.01 * np.power(distance,3)
                 #-(0.2 * top_v + 0.5)
                 )
         #- 0.0001 * velocity_magnitude - 0.005 * acc_magnitude + 0.01 * step_bonus
@@ -147,5 +147,5 @@ class InvertedPendulum3D(gym.Env):
         self.last_action = action.copy()
 
         # 终止条件
-        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10)
+        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10 or current_pole_z < 0)
         return obs, reward, terminated, False, {}
