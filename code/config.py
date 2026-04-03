@@ -10,8 +10,11 @@ BASE_MASS = 0        # 0 代表质量无穷大（静止或运动学控制）
 POLE_MASS = 1.0
 POLE_LENGTH = 1.0
 POLE_RADIUS = 0.02
+INIT_ANGLE = 0
+RAND_ANGLE = 0.05
+MAX_SPEED = 0.05
 
 # 训练超参数
 LEARNING_RATE = 0.0003
 GAMMA = 0.99
-TOTAL_TIMESTEPS = 500000  # 3D平衡较难，建议步数多一点
+TOTAL_TIMESTEPS = 100000  # 3D平衡较难，建议步数多一点

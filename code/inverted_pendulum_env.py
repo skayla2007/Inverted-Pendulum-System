@@ -12,7 +12,7 @@ class InvertedPendulum3D(gym.Env):
         self.physics_client = p.connect(p.GUI if render else p.DIRECT)
 
         # 动作空间：底座在 X, Y 轴的位移增量 (速度)
-        self.action_space = spaces.Box(low=-0.05, high=0.05, shape=(2,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-config.MAX_SPEED, high=config.MAX_SPEED, shape=(2,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(9,), dtype=np.float32)
 
         # 记录底座当前位置
@@ -43,14 +43,14 @@ class InvertedPendulum3D(gym.Env):
         pc_id = p.createCollisionShape(p.GEOM_CAPSULE, radius=config.POLE_RADIUS, height=config.POLE_LENGTH)
 
         # 初始位置随机偏移 (模拟杆子初始就不稳)
-        rand_x = np.random.uniform(-0.05, 0.05)
-        rand_y = np.random.uniform(-0.05, 0.05)
-        init_orn = p.getQuaternionFromEuler([np.pi + rand_x, rand_y, 0])
+        rand_x = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
+        rand_y = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
+        init_orn = p.getQuaternionFromEuler([config.INIT_ANGLE + rand_x, rand_y, 0])
 
         # 向下初始化时，杆子的几何中心应该在底座下方 (0.05 - 半个杆长)
         self.pole_id = p.createMultiBody(baseMass=config.POLE_MASS, baseCollisionShapeIndex=pc_id,
                                          baseVisualShapeIndex=pv_id,
-                                         basePosition=[0, 0, 0.05 - config.POLE_LENGTH / 2],
+                                         basePosition=[0, 0, 0.05 + config.POLE_LENGTH / 2],
                                          baseOrientation=init_orn)
 
         # 3. 约束：点对点约束 (球向铰链)
@@ -60,7 +60,7 @@ class InvertedPendulum3D(gym.Env):
                                                 [0, 0, -config.POLE_LENGTH / 2])
 
         # 彻底关闭杆子的一切阻尼和摩擦
-        p.changeDynamics(self.pole_id, -1, linearDamping=0, angularDamping=0, jointLowerLimit=0, jointUpperLimit=0)
+        p.changeDynamics(self.pole_id, -1, linearDamping=0, angularDamping=0.2, jointLowerLimit=0, jointUpperLimit=0)
 
         self.base_pos = np.array([0.0, 0.0, 0.0])
         self.last_action = np.zeros(2, dtype=np.float32)
@@ -116,24 +116,36 @@ class InvertedPendulum3D(gym.Env):
 
         obs = self._get_obs()
 
+        v_cm, omega = p.getBaseVelocity(self.pole_id)
+        p_pos, _ = p.getBasePositionAndOrientation(self.pole_id)
+        r = np.array(top_pos) - np.array(p_pos)
+        v_top = np.array(v_cm) + np.cross(np.array(omega), r)
+
+        top_vx = v_top[0]  # 末端x速度
+        top_vy = v_top[1]  #末端y速度
+        top_vz = v_top[2]  # 末端z速度
+        top_v = np.linalg.norm(v_top)
         self.steps += 1
-        step_bonus = 0.03 * self.steps
-
-        distance = np.linalg.norm([obs[0] , obs[1]])
-        # 奖励：角度偏差平方越小奖励越高
-        current_pole_z = obs[2]
-
-        velocity_magnitude = np.linalg.norm(action)
+        step_bonus = 0.03 * self.steps  #步数
+        distance = np.linalg.norm([obs[0] , obs[1]])  #底座位移大小
+        current_pole_z = obs[2]  #重心高度
+        velocity_magnitude = np.linalg.norm(action)  #底座速度
 
         acceleration = (action - self.last_action) / config.TIME_STEP
-        acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小（模长）
+        acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小
+        high = current_pole_z if current_pole_z > 0.2 else -1  # 正高度
 
-        high = current_pole_z if current_pole_z > 0.2 else -1
-
-        reward = 1.0 * current_pole_z #- 0.02 * distance - 0.0001 * velocity_magnitude - 0.005 * acc_magnitude + 0.01 * step_bonus
-
+        reward =  (
+                #20.0 * (- current_pole_z * current_pole_z + current_pole_z)
+                +1.0 * (current_pole_z)
+                #+ 8.0 * np.power(current_pole_z,3)
+                #- 0.01 * np.power(distance,3)
+                #-(0.2 * top_v + 0.5)
+                )
+        #- 0.0001 * velocity_magnitude - 0.005 * acc_magnitude + 0.01 * step_bonus
+        print(reward)
         self.last_action = action.copy()
 
         # 终止条件
-        terminated = bool(abs(obs[0]) > 5 or abs(obs[1]) > 5)
+        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10)
         return obs, reward, terminated, False, {}
