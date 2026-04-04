@@ -4,6 +4,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import config
+import pybullet_data
 
 
 class InvertedPendulum3D(gym.Env):
@@ -31,6 +32,12 @@ class InvertedPendulum3D(gym.Env):
         p.resetSimulation()
         p.setGravity(0, 0, config.GRAVITY)
         p.setTimeStep(config.TIME_STEP)
+        p.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+        #创建地面
+        self.plane_id = p.loadURDF("plane.urdf")
+        tex_id = p.loadTexture("image/grass_240.png")
+        p.changeVisualShape(self.plane_id, -1, textureUniqueId=tex_id)
 
         # 1. 创建底座 (质量为0，不受外界力影响)
         b_v = p.createVisualShape(p.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01], rgbaColor=[0.2, 0.2, 0.2, 1])
@@ -38,8 +45,16 @@ class InvertedPendulum3D(gym.Env):
                                          baseVisualShapeIndex=b_v, basePosition=[0, 0, 0])
 
         # 2. 创建杆子
-        pv_id = p.createVisualShape(p.GEOM_CAPSULE, radius=config.POLE_RADIUS, length=config.POLE_LENGTH,
-                                    rgbaColor=[1, 0, 0, 1])
+        correction_euler = [1.57, 0, 0]  # 90度约为 1.57 弧度
+        correction_orn = p.getQuaternionFromEuler(correction_euler)
+        pv_id = p.createVisualShape(
+            shapeType=p.GEOM_MESH,
+            fileName="obj/Saturn V.obj",  # 替换成你的文件路径
+            meshScale=[0.5, 0.5, 0.5],  # 缩放比例，如果模型太大/太小在这里调整
+            #rgbaColor=[1, 1, 1, 1],  # 模型的底色（如果有贴图通常设为白色）
+            visualFramePosition=[0, 0.57, 1.2],  # 视觉偏移：如果模型中心不对，在这里修
+            visualFrameOrientation = correction_orn
+        )
         pc_id = p.createCollisionShape(p.GEOM_CAPSULE, radius=config.POLE_RADIUS, height=config.POLE_LENGTH)
 
         # 初始位置随机偏移 (模拟杆子初始就不稳)
@@ -50,7 +65,7 @@ class InvertedPendulum3D(gym.Env):
         # 向下初始化时，杆子的几何中心应该在底座下方 (0.05 - 半个杆长)
         self.pole_id = p.createMultiBody(baseMass=config.POLE_MASS, baseCollisionShapeIndex=pc_id,
                                          baseVisualShapeIndex=pv_id,
-                                         basePosition=[0, 0, 0.05 + config.POLE_LENGTH / 2],
+                                         basePosition=[0, 0, 0 + config.POLE_LENGTH / 2],
                                          baseOrientation=init_orn)
 
         # 3. 约束：点对点约束 (球向铰链)
@@ -59,8 +74,10 @@ class InvertedPendulum3D(gym.Env):
                                                 p.JOINT_POINT2POINT, [0, 0, 1], [0, 0, 0],
                                                 [0, 0, -config.POLE_LENGTH / 2])
 
-        # 彻底关闭杆子的一切阻尼和摩擦
+        # 杆子底座阻力，杆子地面碰撞，底座地面碰撞
         p.changeDynamics(self.pole_id, -1, linearDamping=0, angularDamping=0.2, jointLowerLimit=0, jointUpperLimit=0)
+        p.setCollisionFilterPair(self.pole_id, self.plane_id, -1, -1, enableCollision=0)
+        p.setCollisionFilterPair(self.base_id, self.plane_id, -1, -1, enableCollision=0)
 
         self.base_pos = np.array([0.0, 0.0, 0.0])
         self.last_action = np.zeros(2, dtype=np.float32)
@@ -141,11 +158,12 @@ class InvertedPendulum3D(gym.Env):
                 #+ 8.0 * np.power(current_pole_z,3)
                 - 0.01 * np.power(distance,3)
                 #-(0.2 * top_v + 0.5)
+                #- 0.005 * acc_magnitude
+                #- 0.001 * velocity_magnitude
+                #+ 0.03 * step_bonus
                 )
-        #- 0.0001 * velocity_magnitude - 0.005 * acc_magnitude + 0.01 * step_bonus
-        print(reward)
         self.last_action = action.copy()
 
         # 终止条件
-        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10 or current_pole_z < 0)
+        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10 or current_pole_z < 0.1 or self.steps >= self.max_steps)
         return obs, reward, terminated, False, {}
