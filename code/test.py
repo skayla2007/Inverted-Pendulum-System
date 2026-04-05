@@ -6,7 +6,7 @@ from inverted_pendulum_env import InvertedPendulum3D
 
 
 def test_manual():
-    env = InvertedPendulum3D(render=True)
+    env = InvertedPendulum3D(render=True, use_mesh=False)
     obs, _ = env.reset()
     print(">>> 物理验证：底座不受杆子影响，按方向键移动底座，观察杆子惯性。")
 

@@ -8,8 +8,10 @@ import pybullet_data
 
 
 class InvertedPendulum3D(gym.Env):
-    def __init__(self, render=True):
+    def __init__(self, render=True, use_mesh=False):
         super().__init__()
+        self.render_mode = render
+        self.use_mesh = use_mesh # 记录是否使用模型
         self.physics_client = p.connect(p.GUI if render else p.DIRECT)
 
         # 动作空间：底座在 X, Y 轴的位移增量 (速度)
@@ -41,20 +43,24 @@ class InvertedPendulum3D(gym.Env):
 
         # 1. 创建底座 (质量为0，不受外界力影响)
         b_v = p.createVisualShape(p.GEOM_BOX, halfExtents=[0.01, 0.01, 0.01], rgbaColor=[0.2, 0.2, 0.2, 1])
-        self.base_id = p.createMultiBody(baseMass=0, baseCollisionShapeIndex=-1,
+        self.base_id = p.createMultiBody(baseMass=config.BASE_MASS, baseCollisionShapeIndex=-1,
                                          baseVisualShapeIndex=b_v, basePosition=[0, 0, 0])
 
         # 2. 创建杆子
-        correction_euler = [1.57, 0, 0]  # 90度约为 1.57 弧度
-        correction_orn = p.getQuaternionFromEuler(correction_euler)
-        pv_id = p.createVisualShape(
-            shapeType=p.GEOM_MESH,
-            fileName="obj/Saturn V.obj",  # 替换成你的文件路径
-            meshScale=[0.5, 0.5, 0.5],  # 缩放比例，如果模型太大/太小在这里调整
-            #rgbaColor=[1, 1, 1, 1],  # 模型的底色（如果有贴图通常设为白色）
-            visualFramePosition=[0, 0.57, 1.2],  # 视觉偏移：如果模型中心不对，在这里修
-            visualFrameOrientation = correction_orn
-        )
+        if self.use_mesh:
+            correction_euler = [1.57, 0, 0]
+            correction_orn = p.getQuaternionFromEuler(correction_euler)
+            pv_id = p.createVisualShape(
+                shapeType=p.GEOM_MESH,
+                fileName="obj/Saturn V.obj",
+                meshScale=[0.5, 0.5, 0.5],
+                visualFramePosition=[0, 0.57, 1.2],
+                visualFrameOrientation=correction_orn
+            )
+        else:
+            pv_id = p.createVisualShape(p.GEOM_CAPSULE, radius=config.POLE_RADIUS, length=config.POLE_LENGTH,
+                                        rgbaColor=[0, 0.5, 1, 1])
+
         pc_id = p.createCollisionShape(p.GEOM_CAPSULE, radius=config.POLE_RADIUS, height=config.POLE_LENGTH)
 
         # 初始位置随机偏移 (模拟杆子初始就不稳)
@@ -160,7 +166,7 @@ class InvertedPendulum3D(gym.Env):
                 #-(0.2 * top_v + 0.5)
                 #- 0.005 * acc_magnitude
                 #- 0.001 * velocity_magnitude
-                #+ 0.03 * step_bonus
+                + 0.08 * step_bonus
                 )
         self.last_action = action.copy()
 

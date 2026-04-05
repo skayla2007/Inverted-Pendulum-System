@@ -6,7 +6,7 @@ from stable_baselines3 import PPO
 from inverted_pendulum_env import InvertedPendulum3D
 
 def run():
-    env = InvertedPendulum3D(render=True)
+    env = InvertedPendulum3D(render=True, use_mesh=True)
     model = PPO.load("kinematic_balance_model")
     obs, _ = env.reset()
     while True:

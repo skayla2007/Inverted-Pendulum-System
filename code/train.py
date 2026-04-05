@@ -6,7 +6,7 @@ import torch
 
 
 def train():
-    env = InvertedPendulum3D(render=False)
+    env = InvertedPendulum3D(render=False, use_mesh=False)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     policy_kwargs = dict(
@@ -18,7 +18,7 @@ def train():
                 verbose=1,
                 learning_rate=0.0003,
                 n_steps=2048,
-                batch_size=512,
+                batch_size=128,
                 policy_kwargs=policy_kwargs,
                 device=device)
 
