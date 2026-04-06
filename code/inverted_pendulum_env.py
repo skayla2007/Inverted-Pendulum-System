@@ -51,13 +51,13 @@ class InvertedPendulum3D(gym.Env):
 
         # 2. 创建杆子
         if self.use_mesh:
-            correction_euler = [1.57, 0, 0]
+            correction_euler = [0, 0, 0]
             correction_orn = p.getQuaternionFromEuler(correction_euler)
             pv_id = p.createVisualShape(
                 shapeType=p.GEOM_MESH,
-                fileName="obj/Saturn V.obj",
-                meshScale=[0.5, 0.5, 0.5],
-                visualFramePosition=[0, 0.57, 1.2],
+                fileName="obj/source/rocket.obj",
+                meshScale=[0.002, 0.002, 0.002],
+                visualFramePosition=[0, 0, -0.25],
                 visualFrameOrientation=correction_orn
             )
         else:
@@ -71,11 +71,19 @@ class InvertedPendulum3D(gym.Env):
         rand_y = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
         init_orn = p.getQuaternionFromEuler([config.INIT_ANGLE + rand_x, rand_y, 0])
 
-        # 向下初始化时，杆子的几何中心应该在底座下方 (0.05 - 半个杆长)
         self.pole_id = p.createMultiBody(baseMass=config.POLE_MASS, baseCollisionShapeIndex=pc_id,
                                          baseVisualShapeIndex=pv_id,
                                          basePosition=[0, 0, 0 + config.POLE_LENGTH / 2],
                                          baseOrientation=init_orn)
+
+        if self.use_mesh:
+            self.tex_id = p.loadTexture("obj/source/rocket_default_BaseColor.png")
+            p.changeVisualShape(self.pole_id, -1, textureUniqueId=self.tex_id)
+
+        # 初始位置随机偏移 (模拟杆子初始就不稳)
+        rand_x = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
+        rand_y = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
+        init_orn = p.getQuaternionFromEuler([config.INIT_ANGLE + rand_x, rand_y, 0])
 
         # 3. 约束：点对点约束 (球向铰链)
         # 将杆子的底部 ([0,0,-L/2]) 连到底座中心
