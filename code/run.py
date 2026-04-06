@@ -16,8 +16,8 @@ def run():
 
         if p.B3G_LEFT_ARROW in keys and keys[p.B3G_LEFT_ARROW] & p.KEY_IS_DOWN: ang_vel = [0, -impulse, 0]
         if p.B3G_RIGHT_ARROW in keys and keys[p.B3G_RIGHT_ARROW] & p.KEY_IS_DOWN: ang_vel = [0, impulse, 0]
-        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN: ang_vel = [impulse, 0, 0]
-        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN: ang_vel = [-impulse, 0, 0]
+        if p.B3G_UP_ARROW in keys and keys[p.B3G_UP_ARROW] & p.KEY_IS_DOWN: ang_vel = [-impulse, 0, 0]
+        if p.B3G_DOWN_ARROW in keys and keys[p.B3G_DOWN_ARROW] & p.KEY_IS_DOWN: ang_vel = [impulse, 0, 0]
 
         if any(v != 0 for v in ang_vel):
             curr_v, curr_w = p.getBaseVelocity(env.pole_id)
