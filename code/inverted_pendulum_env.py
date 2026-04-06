@@ -29,6 +29,9 @@ class InvertedPendulum3D(gym.Env):
         self.traj_points = []
         self.max_traj_len = 50
 
+        self.smoothed_action = np.zeros(2, dtype=np.float32)
+        self.alpha = 0.1
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         p.resetSimulation()
@@ -103,7 +106,7 @@ class InvertedPendulum3D(gym.Env):
 
         return np.array([
             b_pos[0], b_pos[1],
-            p_pos[2],  # 新加的分量：重心高度 Z
+            p_pos[2],
             euler[0], euler[1],
             b_vel[0], b_vel[1],
             p_w[0], p_w[1]
@@ -112,12 +115,11 @@ class InvertedPendulum3D(gym.Env):
     def step(self, action):
         action = np.array(action, dtype=np.float32)
 
-        # 核心逻辑：底座不受力，直接改变位置 (Kinematic Control)
-        # 这样底座移动时，杆子会因为惯性向反方向倒
-        self.base_pos[0] += action[0]
-        self.base_pos[1] += action[1]
+        self.smoothed_action = self.alpha * action + (1 - self.alpha) * self.smoothed_action
 
-        # 瞬间移动底座，不通过物理引擎算力，从而实现“质量无穷大”的效果
+        self.base_pos[0] += self.smoothed_action[0]
+        self.base_pos[1] += self.smoothed_action[1]
+
         p.resetBasePositionAndOrientation(self.base_id, [self.base_pos[0], self.base_pos[1], 0], [0, 0, 0, 1])
 
         p.stepSimulation()
@@ -157,12 +159,15 @@ class InvertedPendulum3D(gym.Env):
         acceleration = (action - self.last_action) / config.TIME_STEP
         acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小
         high = current_pole_z if current_pole_z > 0.2 else -1  # 正高度
+        pole_angle = np.arccos(2 * current_pole_z / config.POLE_LENGTH - 0.01)
 
         reward =  (
                 #20.0 * (- current_pole_z * current_pole_z + current_pole_z)
+                +np.pi/2 - pole_angle
                 +1.0 * (current_pole_z)
                 #+ 8.0 * np.power(current_pole_z,3)
-                - 0.01 * np.power(distance,3)
+                - 1 * np.power(distance,1)
+                - 0.03 * np.power(distance, 3)
                 #-(0.2 * top_v + 0.5)
                 #- 0.005 * acc_magnitude
                 #- 0.001 * velocity_magnitude
@@ -171,5 +176,5 @@ class InvertedPendulum3D(gym.Env):
         self.last_action = action.copy()
 
         # 终止条件
-        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10 or current_pole_z < 0.1 or self.steps >= self.max_steps)
+        terminated = bool(abs(obs[0]) > 10 or abs(obs[1]) > 10 or pole_angle > 0.2 or self.steps >= self.max_steps)
         return obs, reward, terminated, False, {}
