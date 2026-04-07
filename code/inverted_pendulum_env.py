@@ -3,6 +3,8 @@ import pybullet as p
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from manim import smooth
+
 import config
 import pybullet_data
 
@@ -24,7 +26,7 @@ class InvertedPendulum3D(gym.Env):
         self.last_action = np.zeros(2, dtype=np.float32)
 
         self.steps = 0  # 记录当前episode的步数
-        self.max_steps = 1000  # 最大步数，防止无限运行
+        self.max_steps = 4000  # 最大步数，防止无限运行
 
         self.traj_points = []
         self.max_traj_len = 50
@@ -76,14 +78,16 @@ class InvertedPendulum3D(gym.Env):
                                          basePosition=[0, 0, 0 + config.POLE_LENGTH / 2],
                                          baseOrientation=init_orn)
 
+        max_init_ang_vel = 0
+        rand_ang_vx = np.random.uniform(-max_init_ang_vel, max_init_ang_vel)
+        rand_ang_vy = np.random.uniform(-max_init_ang_vel, max_init_ang_vel)
+
+        # resetBaseVelocity 参数：物体ID, 线速度[x,y,z], 角速度[wx,wy,wz]
+        p.resetBaseVelocity(self.pole_id, linearVelocity=[0, 0, 0], angularVelocity=[rand_ang_vx, rand_ang_vy, 0])
+
         if self.use_mesh:
             self.tex_id = p.loadTexture("obj/source/rocket_default_BaseColor.png")
             p.changeVisualShape(self.pole_id, -1, textureUniqueId=self.tex_id)
-
-        # 初始位置随机偏移 (模拟杆子初始就不稳)
-        rand_x = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
-        rand_y = np.random.uniform(-config.RAND_ANGLE, config.RAND_ANGLE)
-        init_orn = p.getQuaternionFromEuler([config.INIT_ANGLE + rand_x, rand_y, 0])
 
         # 3. 约束：点对点约束 (球向铰链)
         # 将杆子的底部 ([0,0,-L/2]) 连到底座中心
@@ -162,7 +166,7 @@ class InvertedPendulum3D(gym.Env):
         step_bonus = 0.03 * self.steps  #步数
         distance = np.linalg.norm([obs[0] , obs[1]])  #底座位移大小
         current_pole_z = obs[2]  #重心高度
-        velocity_magnitude = np.linalg.norm(action)  #底座速度
+        velocity_magnitude = np.linalg.norm(self.smoothed_action)  #底座速度
 
         acceleration = (action - self.last_action) / config.TIME_STEP
         acc_magnitude = np.linalg.norm(acceleration)  # 加速度的大小
@@ -175,10 +179,11 @@ class InvertedPendulum3D(gym.Env):
                 +1.0 * (current_pole_z)
                 #+ 8.0 * np.power(current_pole_z,3)
                 - 1 * np.power(distance,1)
+                - 1 * np.power(distance, 1/2)
                 - 0.03 * np.power(distance, 3)
                 #-(0.2 * top_v + 0.5)
                 #- 0.005 * acc_magnitude
-                #- 0.001 * velocity_magnitude
+                - 0.5 * velocity_magnitude
                 + 0.08 * step_bonus
                 )
         self.last_action = action.copy()
