@@ -3,8 +3,6 @@ import pybullet as p
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from manim import smooth
-
 import config
 import pybullet_data
 
