@@ -10,17 +10,19 @@ def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     policy_kwargs = dict(
-        activation_fn=torch.nn.ReLU,
-        net_arch=dict(pi=[256, 256], vf=[256, 256])
+        activation_fn=torch.nn.ReLU, net_arch=dict(pi=[256, 256], vf=[256, 256])
     )
 
-    model = PPO("MlpPolicy", env,
-                verbose=1,
-                learning_rate=0.0003,
-                n_steps=2048,
-                batch_size=128,
-                policy_kwargs=policy_kwargs,
-                device=device)
+    model = PPO(
+        "MlpPolicy",
+        env,
+        verbose=1,
+        learning_rate=0.0003,
+        n_steps=2048,
+        batch_size=128,
+        policy_kwargs=policy_kwargs,
+        device=device,
+    )
 
     print(f"使用 {device} 训练中...")
     model.learn(total_timesteps=config.TOTAL_TIMESTEPS)

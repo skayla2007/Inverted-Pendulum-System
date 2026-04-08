@@ -3,10 +3,10 @@ import numpy as np
 
 # 物理引擎参数
 GRAVITY = -9.81
-TIME_STEP = 1/120.0
+TIME_STEP = 1 / 120.0
 
 # 杆件参数
-BASE_MASS = 0        # 0 代表质量无穷大（静止或运动学控制）
+BASE_MASS = 0  # 0 代表质量无穷大（静止或运动学控制）
 POLE_MASS = 1.0
 POLE_LENGTH = 1.0
 POLE_RADIUS = 0.02
