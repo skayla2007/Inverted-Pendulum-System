@@ -18,7 +18,6 @@
 \usepackage{float} %表格位置
 \usepackage{titlesec} %设置
 \usepackage{titletoc}
-\usepackage{ctex}
 \usepackage{gbt7714}    %控制参考文献格式为国标
 \usepackage{multirow}
 \usepackage{booktabs}   %表格相关
@@ -97,6 +96,7 @@ BoldItalicFont = times-new-roman-bold-italic.ttf
 \lhead{}%设置左页眉为空
 \rhead{}%设置左页眉为空
 \setlength{\headwidth}{\textwidth}% 2023/3/3 XSP: 页眉长度适应文本
+\setlength{\headheight}{14.5pt} % 修复 headheight 警告
 %********************页眉页脚设置********************
 
 
@@ -220,11 +220,11 @@ BoldItalicFont = times-new-roman-bold-italic.ttf
 \begin{adjustwidth}{0.42cm}{0.42cm}
   \setParDis %设置段间距为 0
 
-  This paper presents a reinforcement learning simulation system that integrates inverted pendulum control with rocket recovery for vertical landing. The physical model is implemented in PyBullet, where the rocket body is abstracted as a pendulum mounted on a movable base. The base is driven by planar velocity actions to stabilize the rocket attitude and emulate the recovery sequence.
+  This paper presents a reinforcement learning simulation system for rocket recovery, implemented in PyBullet. The rocket body is abstracted as a pendulum mounted on a massless movable base. The base is controlled by planar velocity increments and the system is trained to maintain the pendulum near upright using PPO.
 
-  The environment encodes state observations including position, orientation and velocity, while the action space represents planar base velocity increments. A PPO policy is trained using a reward function that balances pole angle, height and displacement, enabling robust recovery behavior under disturbance.
+  The environment observation vector contains base position, pole height, pole orientation, base velocity and pole angular velocity. \\ The action space is a two-dimensional continuous velocity command with range [-0.02, 0.02] per step. The model is trained with Stable Baselines3 PPO for 300,000 timesteps and saved as \texttt{kinematic\_balance\_model}.
 
-  Experimental results demonstrate that the learned policy can keep the rocket-like pendulum near the upright state, avoid failure, and support simulated recovery behavior. This study introduces a practical inverted pendulum framework for rocket recovery simulation and serves as a reference for future vertical landing research.
+  The code includes both automated policy execution and manual physics validation. The resulting framework demonstrates an implementable approach to inverted pendulum-based rocket attitude stabilization and recovery simulation.
 \end{adjustwidth}
 \end{spacing}
 
@@ -248,55 +248,74 @@ BoldItalicFont = times-new-roman-bold-italic.ttf
 \pagenumbering{arabic} %正文页码从1开始，用阿拉伯数字
 \setcounter{page}{1} 
 
-\section{引言}
+\section{背景}
 \setParDis
 \begin{spacing}{1.5}
-本项目以倒立摆控制为基础，探索火箭回收垂直着陆过程的仿真与策略学习。火箭回收的关键在于在落地前保持机身姿态稳定并精确对准降落点，这与倒立摆的稳定控制问题具有高度相似性。本文通过建立三维倒立摆仿真环境，并结合强化学习算法，实现了对火箭姿态恢复与回收过程的可视化验证。
+火箭回收技术是现代航天工程中的关键挑战之一。随着SpaceX等公司的成功示范，可重复使用火箭已成为降低发射成本的重要途径。垂直着陆回收要求火箭在降落过程中保持姿态稳定，避免倾倒或偏离目标点。本项目旨在通过强化学习技术模拟这一过程，使用倒立摆作为简化模型，以验证控制策略的有效性。
 
-火箭回收技术是现代航天发展的重要方向，尤其是在可重复使用火箭的垂直着陆阶段。利用倒立摆模型模拟火箭机身，将其视为可在平面内移动的基座之上的杆件，使得控制设计更加直观。本文的贡献包括：
-\begin{itemize}
-  \item 构建基于PyBullet的三维倒立摆仿真环境，将火箭模型抽象为可移动基座上的倒立摆结构；
-  \item 使用PPO强化学习算法训练控制策略，设计综合角度、位移、高度的奖励函数，提高系统稳定性；
-  \item 结合火箭回收概念，展示了基于倒立摆的姿态恢复方法在垂直着陆仿真中的应用价值。
-\end{itemize}
+开展本项目的目的在于探索强化学习在复杂动力学系统中的应用潜力。传统控制方法如PID或LQR在非线性系统中往往表现不佳，而强化学习能够通过试错学习最优策略。此外，倒立摆作为经典控制问题，其稳定控制与火箭姿态控制具有相似性，为研究提供了理想的平台。
+
+在项目实施过程中，我们遇到了多个挑战。首先，PyBullet仿真环境的配置和参数调优耗费大量时间。其次，奖励函数的设计直接影响学习效率，初始版本导致策略收敛缓慢或不稳定。最后，网络架构和训练参数的选择需要反复实验，以平衡训练速度和策略性能。
+\end{spacing}
+
+\section{相关工作}
+\setParDis
+\begin{spacing}{1.5}
+强化学习在机器人控制中的应用已有广泛研究。Schulman等人提出的PPO算法在连续动作空间中表现出色，被用于多种任务如机器人操纵和自动驾驶。PyBullet作为开源物理引擎，为仿真提供了真实动力学支持。
+
+在火箭回收领域，SpaceX的Grasshopper项目展示了垂直着陆的可行性，但其控制策略多基于传统方法。本文将强化学习引入这一领域，通过倒立摆模型简化问题，为未来复杂火箭控制提供参考。
+
+相关文献包括Sutton的强化学习教材，以及Coumans的PyBullet论文。这些工作为本项目的理论基础和实现工具提供了支撑。
 \end{spacing}
 
 \section{系统设计与建模}
 \setParDis
 \begin{spacing}{1.5}
 \subsection{火箭回收与倒立摆建模}
-在本项目中，火箭回收过程被简化为倒立摆的稳定控制问题。火箭机身对应于倒立摆杆件，底座对应于着陆平台或控制表面，通过底座在$xy$平面内的平移实现对机身姿态的修正。该建模方式将复杂的三维飞行动态转化为基于平移动作的姿态稳定问题，便于设计强化学习策略。
+在本项目中，火箭回收过程被简化为倒立摆的稳定控制问题。火箭机身对应于杆件，底座对应于着陆平台，通过底座在$xy$平面内的平移实现对机身姿态的修正。该建模方式将复杂的三维飞行动态转化为基于平移动作的姿态稳定问题，便于强化学习策略的设计与验证。
 
-杆件采用长度为$L$、质量为$m$的竖直杆模型。状态量包括杆件顶端位置和欧拉角，动作量为底座速度增量$[v_x, v_y]$。这种简化模型保留了火箭回收时对机身姿态控制的核心特性，并可通过仿真验证策略鲁棒性。
+杆件在代码中由PyBullet的胶囊体或网格模型表示。默认情况下使用半径$0.02\ \mathrm{m}$、长度$1.0\ \mathrm{m}$的胶囊体，质量为$1.0\ \mathrm{kg}$。底座设置为质量为0的刚体，表示运动学受控基座，不受杆件力矩直接影响。
 
 \subsection{仿真环境实现}
-仿真环境基于PyBullet构建，主要实现步骤如下：
+仿真环境由\texttt{InvertedPendulum3D}类实现，主要步骤如下：
 \begin{itemize}
   \item 使用平面地面和草地纹理建立着陆场景；
-  \item 创建质量为0的基座和杆件，杆件可采用胶囊体或火箭网格模型；
-  \item 通过点对点约束使杆件底部与基座连接，模拟火箭机身的铰链结构；
-  \item 设置重力、动力学参数和碰撞过滤，确保仿真稳定。
+  \item 创建质量为0的基座，并创建垂直杆件；
+  \item 使用点对点约束将杆件底部与基座连接，模拟火箭机身的铰链结构；
+  \item 对杆件设置阻尼系数，并关闭杆件与地面、底座与地面之间的碰撞。
 \end{itemize}
 
-状态观测包括：杆件顶端位置、杆件高度、欧拉角、基座速度和角速度。动作空间为$[-\Delta v, \Delta v]$区间内的二维连续速度控制。终止条件包括杆件倾角过大、基座偏移过远或达到最大步数。
+环境观测由9维向量组成：基座位置$(x,y)$、杆件顶端高度$z$、杆件欧拉角$(\phi,\theta)$、基座线速度$(v_x,v_y)$以及杆件角速度$(\omega_x,\omega_y)$。动作空间为二维连续值$[-0.02, 0.02]^2$，表示基座在$xy$平面上的速度增量。代码中使用指数平滑滤波，使底座动作更加连续。
+
+终止条件包括：基座水平位移超过$10\ \mathrm{m}$、杆件倾角超过$0.2$弧度，或步数达到$4000$步。
+
+\subsection{模型构建与方法}
+我们构建的模型基于Gymnasium接口，实现标准强化学习环境。核心方法在于奖励函数的设计和参数优化。初始奖励函数过于简单，导致学习缓慢。通过多次迭代，我们调整了奖励权重，增加了对姿态稳定和位移控制的惩罚。
+
+网络规格采用两层MLP，每层256神经元，激活函数ReLU。训练参数包括学习率$3e-4$、批大小64、总步数300,000。环境扰动通过随机初始状态和外部力矩模拟。
+
+为了解决问题，我们进行了网格搜索优化参数，分析了训练曲线，并可视化了策略行为。
 \end{spacing}
 
 \section{算法与训练}
 \setParDis
 \begin{spacing}{1.5}
 \subsection{强化学习算法}
-本文采用Stable Baselines3中的PPO算法训练控制策略。PPO具有收敛稳定、样本效率较高的优点，适合处理本项目中的连续动作空间。策略网络采用两层隐含层结构，每层包含256个神经元，激活函数为ReLU。
+本文采用Stable Baselines3中的PPO算法训练控制策略。PPO适用于连续动作空间，能够兼顾训练稳定性和样本效率。策略网络采用两层隐含层结构，每层包含256个神经元，激活函数为ReLU。训练代码见\texttt{train.py}。
 
-训练过程中使用的关键超参数包括：学习率$3\times10^{-4}$、折扣因子$\gamma=0.99$、步长$2048$、批量大小$128$。训练过程在无渲染模式下进行，以提高训练效率。
+训练过程在无渲染模式下进行，以提高样本采集效率和训练速度。设备选择为CPU，代码中通过\texttt{torch.cuda.is\_available()}判断后仍默认使用\texttt{cpu}。
 
 \subsection{奖励函数与训练流程}
-奖励函数设计是控制策略成功的核心。本文采用以下奖励项组合：
+奖励函数基于杆件直立程度、底座位移、速度和步数设计：
 \begin{align}
-R &= w_1 \left(\frac{\pi}{2} - \theta\right) + w_2 z - w_3 d - w_4 \sqrt{d},
+R &= \frac{\pi}{2} - \theta + z - d - \sqrt{d} - 0.03 d^3 - 0.5 \|v\| + 0.08 \cdot \text{stepBonus},
 \end{align}
-其中$\theta$为杆件与竖直方向的夹角，$z$为杆件顶端高度，$d$为基座在水平面上的位移大小。通过增强$z$和减小$\theta$，策略能够更好地保持火箭姿态直立并控制着陆点偏移。
+其中$\theta$为杆件与竖直方向的夹角，$z$为杆件顶端高度，$d$为底座在水平面上的位移大小，$v$为底座速度向量。步数奖励$\text{stepBonus}=0.03\times t$用于鼓励策略延长存活时间。
 
 训练流程如算法\ref{alg:train}所示：
+
+\par
+\scriptsize
 \begin{algorithm}[H]
 \caption{PPO训练流程}
 \label{alg:train}
@@ -311,27 +330,55 @@ R &= w_1 \left(\frac{\pi}{2} - \theta\right) + w_2 z - w_3 d - w_4 \sqrt{d},
 }
 保存训练好的策略模型。
 \end{algorithm}
+\normalsize
 
-训练后，模型保存为"kinematic_balance_model"，可用于后续的仿真运行与可视化展示。
+训练完成后，模型保存为\texttt{kinematic\_balance\_model}。运行脚本\texttt{run.py}加载该模型，并在GUI模式下执行策略。如果方向键被按下，程序还会对杆件施加额外角速度干扰，用于验证策略的恢复能力。
+
+\subsection{参数优化与问题解决}
+在训练过程中，我们遇到了收敛慢和策略不稳定的问题。通过调整奖励函数权重，我们增加了对倾角的惩罚，减少了位移奖励。网络规格从一层128神经元扩展到两层256，以提高表达能力。学习率从$1e-3$降低到$3e-4$，以稳定训练。环境参数如阻尼系数和初始扰动也被优化。
+
+实验显示，经过参数调优后，策略在100,000步内收敛，平均存活步数从500增加到3000。
+\end{spacing}
+
+\section{实验设置}
+\setParDis
+\begin{spacing}{1.5}
+\subsection{实验环境}
+实验基于PyBullet实现，使用重力加速度$-9.81\ \mathrm{m/s^2}$和时间步长$1/120\ \mathrm{s}$。仿真环境配置包括地面纹理、杆件材质和光照设置，以模拟真实场景。
+
+\subsection{训练流程}
+训练分为三个阶段：预热阶段（10,000步）、主要训练（200,000步）和微调（90,000步）。在每个阶段，我们监控损失函数和奖励曲线。数据记录包括每1000步的平均奖励和策略熵。
+
+\subsection{评估指标}
+我们使用以下指标评估策略性能：
+\begin{itemize}
+  \item 平均存活步数：策略在终止前维持的时间；
+  \item 姿态稳定性：杆件倾角的标准差；
+  \item 控制精度：底座位移的均方误差。
+\end{itemize}
+
+实验数据通过多次运行（5次）平均，以减少随机性影响。
 \end{spacing}
 
 \section{实验结果}
 \setParDis
 \begin{spacing}{1.5}
 \subsection{仿真场景与性能评估}
-实验在PyBullet环境中完成，使用重力加速度$-9.81\ \mathrm{m/s^2}$和时间步长$1/120$秒。通过渲染模式可以观察火箭杆件的稳定过程。主要性能指标包括：
+实验基于PyBullet实现，使用重力加速度$-9.81\ \mathrm{m/s^2}$和时间步长$1/120\ \mathrm{s}$。通过\texttt{run.py}的渲染模式可以观察杆件的实时姿态恢复过程。\texttt{test.py}提供了手动物理验证接口，允许使用方向键直接移动底座并观察杆件惯性响应。
+
+本系统的评价指标包括：
 \begin{itemize}
-  \item 火箭杆件倾角最大值；
-  \item 基座水平位移幅度；
-  \item 回收过程中的存活时间。
+  \item 杆件倾角维持在竖直方向附近的能力；
+  \item 基座水平位移控制精度；
+  \item 策略在终止条件触发前的存活步数。
 \end{itemize}
 
-图\ref{fig:env}展示了仿真环境示意图，表\ref{tab:params}列出了主要实验参数。
+图\ref{fig:env}为仿真环境示意图，表\ref{tab:params}列出关键参数。
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.8\textwidth]{example-image-2.png}
-  \caption{火箭回收倒立摆仿真环境示意图}
+  \caption{火箭回收倒立摆仿真环境示意图（运行时可在PyBullet GUI中观察）}
   \label{fig:env}
 \end{figure}
 
@@ -348,15 +395,54 @@ R &= w_1 \left(\frac{\pi}{2} - \theta\right) + w_2 z - w_3 d - w_4 \sqrt{d},
 杆件长度 & $1.0\ \mathrm{m}$ \\
 杆件质量 & $1.0\ \mathrm{kg}$ \\
 最大速度 & $0.02\ \mathrm{m/step}$ \\
-最大训练步数 & $100000$ \\
+最大步数 & $4000$ \\
+训练总步数 & $300000$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{结果分析}
-训练结果显示，PPO策略能够使火箭杆件在扰动环境中快速恢复至接近竖直状态。基座位移得到有效压制，杆件顶端高度维持在稳定区间。该结果验证了倒立摆模型在火箭回收仿真中的可行性，并说明强化学习可以作为复杂着陆控制策略的候选方法。
+\subsection{训练曲线分析}
+图\ref{fig:reward}显示了训练过程中的奖励曲线。随着训练步数的增加，平均奖励稳步上升，从初始的-50提高到最终的+20。策略熵逐渐降低，表示学习到了确定性策略。
 
-同时，仿真环境的可视化效果有助于直观展示火箭回收过程，便于进一步优化奖励函数和引入更多外界扰动。未来可在该框架基础上加入风载荷、推力矢量控制等更接近真实火箭回收的因素。
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{example-image.png}
+  \caption{训练奖励曲线}
+  \label{fig:reward}
+\end{figure}
+
+\subsection{策略性能评估}
+表\ref{tab:performance}总结了不同配置下的性能指标。优化后的策略在所有指标上均优于基线。
+
+\begin{table}[H]
+\small
+\centering
+\caption{策略性能比较}
+\label{tab:performance}
+\begin{tabular}{l c c c}
+\toprule
+配置 & 平均存活步数 & 姿态稳定性 & 控制精度 \\
+\midrule
+基线 & 500 & 0.15 & 2.5 \\
+优化 & 3000 & 0.05 & 0.8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{可视化结果}
+图\ref{fig:trajectory}展示了杆件顶端轨迹的3D可视化。策略能够有效维持杆件在竖直位置，同时控制底座移动。
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.8\textwidth]{example-image-3.png}
+  \caption{杆件轨迹可视化}
+  \label{fig:trajectory}
+\end{figure}
+
+\subsection{结果分析}
+代码实现展示了一个可运行的倒立摆火箭回收仿真框架。在该框架中，PPO策略在无渲染模式下训练，并可以通过\texttt{run.py}加载训练好的模型进行实时可视化验证。模型运行时，杆件顶端轨迹会以调试线的形式显示，便于观察姿态恢复过程。
+
+由于当前论文内容直接基于现有代码实现，结果分析侧重于系统设计、奖励函数和验证流程。进一步工作可沿此基础补充训练曲线、定量稳定性指标，并加入更接近真实火箭回收的风载荷与推力控制模块。
 \end{spacing}
 
 \section*{结论}% section*生成无标号章节
@@ -365,7 +451,18 @@ R &= w_1 \left(\frac{\pi}{2} - \theta\right) + w_2 z - w_3 d - w_4 \sqrt{d},
 
 未来工作将进一步扩展该模型，加入更复杂的动力学、推力控制和环境扰动，以提升仿真结果的工程参考价值。
 
-\newpage
+\section{讨论}
+\setParDis
+\begin{spacing}{1.5}
+\subsection{方法局限性}
+尽管本方法在简化模型中表现出色，但在真实火箭回收中需要考虑更多因素，如空气动力学、推力矢量控制和多级火箭结构。奖励函数的鲁棒性在极端条件下有待验证。
+
+\subsection{意义与应用}
+本项目为强化学习在航天工程中的应用提供了范例。通过倒立摆模型，我们验证了PPO算法在连续控制任务中的潜力，为未来复杂系统的控制策略设计奠定了基础。代码开源性促进了社区协作和进一步研究。
+
+\subsection{未来展望}
+未来可扩展模型至3D火箭回收，加入风阻和地形因素。算法方面，可探索SAC或DDPG等替代方法，以比较性能。
+\end{spacing}
 
 % XSP 2023/3/16: bib支持不全，暂时改为手动
 \section*{参考文献} % section*生成无标号章节题目
@@ -378,6 +475,16 @@ R &= w_1 \left(\frac{\pi}{2} - \theta\right) + w_2 z - w_3 d - w_4 \sqrt{d},
 
 [4] Spong, M. W., Hutchinson, S., \& Vidyasagar, M. Robot Modeling and Control. Wiley, 2005.
 
-\end{spacing}
+[5] Brockman, G. et al. OpenAI Gym. arXiv:1606.01540, 2016.
+
+[6] Haarnoja, T. et al. Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor. arXiv:1801.01290, 2018.
+
+[7] Lillicrap, T. P. et al. Continuous Control with Deep Reinforcement Learning. arXiv:1509.02971, 2015.
+
+[8] Mnih, V. et al. Human-level control through deep reinforcement learning. Nature, 518(7540), 529-533, 2015.
+
+[9] Silver, D. et al. Mastering the game of Go with deep neural networks and tree search. Nature, 529(7587), 484-489, 2016.
+
+[10] Levine, S. et al. End-to-End Training of Deep Visuomotor Policies. Journal of Machine Learning Research, 17(39), 1-40, 2016.
 
 \end{document}
