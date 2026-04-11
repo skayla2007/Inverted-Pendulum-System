@@ -217,15 +217,15 @@ BoldItalicFont = times-new-roman-bold-italic.ttf
 \newpage
 \section*{\textbf{Abstract}} % Abstract 加粗
 \begin{spacing}{1.5}
-\begin{adjustwidth}{0.42cm}{0.42cm}
+%\begin{adjustwidth}{0.42cm}{0.42cm}
   \setParDis %设置段间距为 0
 
   This paper presents a reinforcement learning simulation system for rocket recovery, implemented in PyBullet. The rocket body is abstracted as a pendulum mounted on a massless movable base. The base is controlled by planar velocity increments and the system is trained to maintain the pendulum near upright using PPO.
 
-  The environment observation vector contains base position, pole height, pole orientation, base velocity and pole angular velocity. \\ The action space is a two-dimensional continuous velocity command with range [-0.02, 0.02] per step. The model is trained with Stable Baselines3 PPO for 300,000 timesteps and saved as \texttt{kinematic\_balance\_model}.
+  The environment observation vector contains base position, pole height, pole orientation, base velocity and pole angular velocity. The action space is a two-dimensional continuous velocity command with range [-0.02, 0.02] per step. The model is trained with Stable Baselines3 PPO for 300,000 timesteps and saved as \texttt{kinematic\_balance\_model}.
 
   The code includes both automated policy execution and manual physics validation. The resulting framework demonstrates an implementable approach to inverted pendulum-based rocket attitude stabilization and recovery simulation.
-\end{adjustwidth}
+%\end{adjustwidth}
 \end{spacing}
 
 
@@ -292,7 +292,7 @@ BoldItalicFont = times-new-roman-bold-italic.ttf
 \subsection{模型构建与方法}
 我们构建的模型基于Gymnasium接口，实现标准强化学习环境。核心方法在于奖励函数的设计和参数优化。初始奖励函数过于简单，导致学习缓慢。通过多次迭代，我们调整了奖励权重，增加了对姿态稳定和位移控制的惩罚。
 
-网络规格采用两层MLP，每层256神经元，激活函数ReLU。训练参数包括学习率$3e-4$、批大小64、总步数300,000。环境扰动通过随机初始状态和外部力矩模拟。
+网络规格采用两层MLP，每层256神经元，激活函数ReLU。训练参数包括学习率$3 \times 10^{-4}$、批大小64、总步数300,000。环境扰动通过随机初始状态和外部力矩模拟。
 
 为了解决问题，我们进行了网格搜索优化参数，分析了训练曲线，并可视化了策略行为。
 \end{spacing}
@@ -335,7 +335,7 @@ R &= \frac{\pi}{2} - \theta + z - d - \sqrt{d} - 0.03 d^3 - 0.5 \|v\| + 0.08 \cd
 训练完成后，模型保存为\texttt{kinematic\_balance\_model}。运行脚本\texttt{run.py}加载该模型，并在GUI模式下执行策略。如果方向键被按下，程序还会对杆件施加额外角速度干扰，用于验证策略的恢复能力。
 
 \subsection{参数优化与问题解决}
-在训练过程中，我们遇到了收敛慢和策略不稳定的问题。通过调整奖励函数权重，我们增加了对倾角的惩罚，减少了位移奖励。网络规格从一层128神经元扩展到两层256，以提高表达能力。学习率从$1e-3$降低到$3e-4$，以稳定训练。环境参数如阻尼系数和初始扰动也被优化。
+在训练过程中，我们遇到了收敛慢和策略不稳定的问题。通过调整奖励函数权重，我们增加了对倾角的惩罚，减少了位移奖励。网络规格从一层128神经元扩展到两层256，以提高表达能力。学习率从$1 \times 10^{-3}$降低到$3 \times 10^{-4}$，以稳定训练。环境参数如阻尼系数和初始扰动也被优化。
 
 实验显示，经过参数调优后，策略在100,000步内收敛，平均存活步数从500增加到3000。
 \end{spacing}
@@ -377,7 +377,7 @@ R &= \frac{\pi}{2} - \theta + z - d - \sqrt{d} - 0.03 d^3 - 0.5 \|v\| + 0.08 \cd
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\textwidth]{example-image-2.png}
+  \includegraphics[width=0.8\textwidth]{example-image-2}
   \caption{火箭回收倒立摆仿真环境示意图（运行时可在PyBullet GUI中观察）}
   \label{fig:env}
 \end{figure}
@@ -406,7 +406,7 @@ R &= \frac{\pi}{2} - \theta + z - d - \sqrt{d} - 0.03 d^3 - 0.5 \|v\| + 0.08 \cd
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\textwidth]{example-image.png}
+  \includegraphics[width=0.8\textwidth]{example-image-1}
   \caption{训练奖励曲线}
   \label{fig:reward}
 \end{figure}
@@ -434,7 +434,7 @@ R &= \frac{\pi}{2} - \theta + z - d - \sqrt{d} - 0.03 d^3 - 0.5 \|v\| + 0.08 \cd
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.8\textwidth]{example-image-3.png}
+  \includegraphics[width=0.8\textwidth]{example-image-2}
   \caption{杆件轨迹可视化}
   \label{fig:trajectory}
 \end{figure}
