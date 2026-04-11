@@ -11,7 +11,6 @@
 \usepackage{xcolor}
 \usepackage{geometry} %页面设置
 \usepackage{fontspec}
-\usepackage{setspace}
 \usepackage{times}
 \usepackage{fancyhdr} %页眉页脚
 \pagestyle{fancy}
@@ -30,6 +29,7 @@
 \graphicspath{ {include_picture/} }
 \let\algorithm\relax
 \let\endalgorithm\relax
+\let\p\par
 \usepackage[ruled,vlined]{algorithm2e}%[ruled,vlined]{
 \usepackage{algpseudocode}
 \renewcommand{\algorithmicrequire}{\textbf{Input:}} 
@@ -392,7 +392,7 @@ R_{linear} = (\frac{\pi}{2} - \theta) + z - d - 0.5\|v\|
 \subsubsection{第三阶段：高斯吸引子与非线性梯度奖励（最终方案）}
 为了实现“绝对静止平衡”，本文引入了开根号项与高阶惩罚项，并结合重心高度 $z$：
 \begin{equation}
-R_{final} = \underbrace{w_z z}_{生存引导} - \underbrace{(d + \sqrt{d} + 0.03 d^3)}_{位置硬约束} - \underbrace{0.5 \|v\|}_{动能消除} + \underbrace{\text{StepBonus}}_{存活激励}
+R_{final} = \underbrace{w_z z}_\text{生存引导} - \underbrace{(d + \sqrt{d} + 0.03 d^3)}_\text{位置硬约束} - \underbrace{0.5 \|v\|}_\text{动能消除} + \underbrace{\text{StepBonus}}_\text{存活激励}\label{eq:equation}
 \end{equation}
 其中，$\sqrt{d}$ 的引入极大地增强了原点附近的吸引力梯度，迫使模型在即便只有厘米级位移时也会产生强烈的回归动机。
 
@@ -492,6 +492,8 @@ Ent\_coef & $0.01$ & 维持探索强度，防止策略过早收缩 \\
 其次，针对最为棘手的“螺旋漂移”问题，得益于高斯吸引子奖励函数与重心感知架构的引入，本模型实现了从“动态平衡”到“定点静止”的跃迁。定量分析显示，底座在完成姿态修正后，能够主动通过反向加减速消除剩余动能，最终将稳态位置误差控制在 $0.1\ \mathrm{m}$ 以内。这一改进有效打破了强化学习控制中常见的匀速滑行局部最优解，显著提升了着陆精度。
 
 最后，系统表现出极强的泛化特征。在 GUI 模式下人为施加方向键干扰时，模型能够实时感知外部力矩的变化并做出非线性反馈，确保了在非理想环境下的生存能力。综上所述，该模型不仅验证了 PPO 算法在 VTVL 领域的应用潜力，也为后续加入变推力引擎模块、风场载荷干扰以及实机路径规划提供了坚实的算法基础与仿真验证平台。
+
+\end{spacing}
 
 \section*{结论}% section*生成无标号章节
 \addcontentsline{toc}{section}{结论}
