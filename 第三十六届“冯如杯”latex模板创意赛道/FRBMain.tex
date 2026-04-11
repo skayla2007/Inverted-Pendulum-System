@@ -457,6 +457,26 @@ Ent\_coef & $0.01$ & 维持探索强度，防止策略过早收缩 \\
 
 由于训练过程中火箭倒下会导致重新开始，Rewards 值波动较大，但整体趋势呈现出稳定的上升。
 
+运行过程中参数如图 \ref{fig:analysis_phase_plane}、图 \ref{fig:analysis_disturbance_response} 所示。
+
+\begin{figure}[H]
+    \centering
+    % 此处预留训练曲线图位置
+    \includegraphics[width=0.8\textwidth]{../code/analysis_phase_plane}
+    \caption{运行过程中倾斜角-位移关系图}
+    \label{fig:analysis_phase_plane}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % 此处预留训练曲线图位置
+    \includegraphics[width=0.8\textwidth]{../code/analysis_disturbance_response}
+    \caption{运行过程中及施加扰动时倾斜角-时间关系图}
+    \label{fig:analysis_disturbance_response}
+\end{figure}
+
+由图 \ref{fig:analysis_disturbance_response} 可知，当施加扰动时，模型能够快速响应，并在较短时间内将火箭恢复平衡状态。
+
 \end{spacing}
 
 \section{实验结果}
